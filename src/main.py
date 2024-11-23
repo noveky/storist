@@ -1,6 +1,7 @@
 from backend import utils
 from backend.preprocessing import image_preprocessor
 from backend.query import query_handler
+from backend.fs import file_system_watcher
 
 import asyncio
 from sklearn.metrics.pairwise import cosine_similarity

@@ -1,7 +1,6 @@
 import typing, datetime
 
 
-# Define AST node classes
 class SelectStmt:
     def __init__(
         self,

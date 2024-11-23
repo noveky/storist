@@ -1,6 +1,10 @@
-from ..db import database
-from ..db.models import *
-from . import graph_query_executor, graph_query_interpreter, semantic_query_executor
+from backend.db import database
+from backend.db.models import *
+from . import (
+    semantic_query_executor,
+    structured_query_executor,
+    structured_query_interpreter,
+)
 
 MAX_ITEM_COUNT = 10
 
@@ -23,9 +27,9 @@ async def handle_query(query: str):
     semantic_query_result_ids_with_scores = []
 
     # Graph query
-    sql_select_stmt = await graph_query_interpreter.interpret_query(query)
-    graph_query_result_ids_with_scores = await graph_query_executor.execute_graph_query(
-        sql_select_stmt
+    sql_select_stmt = await structured_query_interpreter.interpret_query(query)
+    graph_query_result_ids_with_scores = (
+        await structured_query_executor.execute_graph_query(sql_select_stmt)
     )
     graph_query_result_ids_with_scores = graph_query_result_ids_with_scores[
         :MAX_ITEM_COUNT

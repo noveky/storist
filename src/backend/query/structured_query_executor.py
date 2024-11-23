@@ -1,7 +1,7 @@
-from ..db import database
-from ..db.models import *
-from ..nlp import embedding
-from .sql_ast import *
+from backend.db import database
+from backend.db.models import *
+from backend.nlp import embedding
+from .psql_ast import *
 
 import math
 

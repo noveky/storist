@@ -1,6 +1,6 @@
-from ..db import database
-from ..db.models import *
-from ..nlp import embedding
+from backend.db import database
+from backend.db.models import *
+from backend.nlp import embedding
 
 
 async def execute_semantic_query(query: str):

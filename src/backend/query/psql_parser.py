@@ -1,8 +1,8 @@
-from .sql_ast import *
+from .psql_ast import *
 
 import lark, re
 
-sql_grammar = r"""
+psql_grammar = r"""
     start: select_stmt
 
     select_stmt: "SELECT" "*" "FROM" identifier "WHERE" condition ";"?
@@ -49,7 +49,7 @@ sql_grammar = r"""
 
 
 @lark.v_args(inline=True)
-class SQLTransformer(lark.Transformer):
+class PSQLTransformer(lark.Transformer):
     def start(self, select_stmt: SelectStmt) -> SelectStmt:
         return select_stmt
 
@@ -129,8 +129,8 @@ class SQLTransformer(lark.Transformer):
         return FunctionCall(str(func_name), list(arguments))
 
 
-sql_parser = lark.Lark(sql_grammar, parser="lalr", transformer=SQLTransformer())
+psql_parser = lark.Lark(psql_grammar, parser="lalr", transformer=PSQLTransformer())
 
 
-def parse(sql_code: str) -> SelectStmt:
-    return sql_parser.parse(sql_code)
+def parse(psql_code: str) -> SelectStmt:
+    return psql_parser.parse(psql_code)

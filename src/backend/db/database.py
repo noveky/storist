@@ -1,4 +1,4 @@
-from .models import *
+from backend.models.models import *
 
 import typing, uuid
 
