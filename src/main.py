@@ -1,4 +1,4 @@
-from backend import utils
+from utils import utils
 from backend.preprocessing import image_preprocessor
 from backend.query import query_handler
 from backend.fs import file_system_watcher

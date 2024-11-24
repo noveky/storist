@@ -1,13 +1,10 @@
-import os, time, json, threading
+from utils import utils
+from config import config
+
+import os, time, threading
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-if __name__ == "__main__":
-    STATE_FILE = "directory_state.json"
-else:
-    from config import config
-
-    STATE_FILE = os.path.join(config.DATA_DIR, "directory_state.json")
 RECURSIVE_MONITORING = True
 
 
@@ -54,11 +51,11 @@ class ChangeHandler(FileSystemEventHandler):
                 self.move_event_handler(event.src_path, event.dest_path)
 
 
-def load_previous_states(paths):
+def load_previous_states(paths) -> dict:
     states = {}
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
-            states = json.load(f)
+    if os.path.exists(config.FILE_STATES_FILE):
+        with open(config.FILE_STATES_FILE, "r") as f:
+            states = utils.load_json(f)
     for path in paths:
         if path not in states:
             states[path] = get_current_state(path)
@@ -66,8 +63,8 @@ def load_previous_states(paths):
 
 
 def save_current_states(states):
-    with open(STATE_FILE, "w") as f:
-        json.dump(states, f, indent=4)
+    with open(config.FILE_STATES_FILE, "w") as f:
+        utils.dump_json(states, f, indent=4)
 
 
 def get_current_state(path):
@@ -181,7 +178,7 @@ class FileSystemWatcher:
                 self.current_states.pop(path, None)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # TODO Remove this
 
     def on_created(path):
         print(f"Custom handler: File created - {path}")
@@ -195,10 +192,10 @@ if __name__ == "__main__":
     def on_moved(src_path, dest_path):
         print(f"Custom handler: File moved from {src_path} to {dest_path}")
 
-    paths_to_watch = [".."]
+    watch_paths = [".."]
 
     monitor = FileSystemWatcher(
-        paths_to_watch,
+        watch_paths,
         create_event_handler=on_created,
         delete_event_handler=on_deleted,
         modify_event_handler=on_modified,

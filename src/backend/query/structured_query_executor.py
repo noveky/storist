@@ -1,12 +1,12 @@
 from backend.db import database
-from backend.db.models import *
+from backend.models.models import *
 from backend.nlp import embedding
 from .psql_ast import *
 
 import math
 
 
-async def execute_graph_query(query: SelectStmt):
+async def execute_structured_query(query: SelectStmt):
 
     def transform_expr(expr, is_condition_expr: bool) -> typing.Any:
         if isinstance(expr, Identifier):

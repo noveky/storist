@@ -39,7 +39,7 @@ Your output format (when user query is not valid):
 ```
 """
 
-IMAGE_PREPROCESSOR_SYSTEM_PROMPT = """
+IMAGE_PREPROCESSOR_SYSTEM_PROMPT_YAML = """
 Describe the given image using a YAML document, wrapped in a code block.
 
 Notes:
@@ -63,7 +63,7 @@ image:
 """
 
 
-IMAGE_PREPROCESSOR_SYSTEM_PROMPT_JSON = """
+IMAGE_PREPROCESSOR_SYSTEM_PROMPT = """
 Describe the given image using a JSON document, wrapped in a code block.
 
 Notes:

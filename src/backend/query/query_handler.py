@@ -1,5 +1,5 @@
 from backend.db import database
-from backend.db.models import *
+from backend.models.models import *
 from . import (
     semantic_query_executor,
     structured_query_executor,
@@ -26,18 +26,18 @@ async def handle_query(query: str):
     # )
     semantic_query_result_ids_with_scores = []
 
-    # Graph query
-    sql_select_stmt = await structured_query_interpreter.interpret_query(query)
-    graph_query_result_ids_with_scores = (
-        await structured_query_executor.execute_graph_query(sql_select_stmt)
+    # Structured query
+    psql_select_stmt = await structured_query_interpreter.interpret_query(query)
+    structured_query_result_ids_with_scores = (
+        await structured_query_executor.execute_structured_query(psql_select_stmt)
     )
-    graph_query_result_ids_with_scores = graph_query_result_ids_with_scores[
+    structured_query_result_ids_with_scores = structured_query_result_ids_with_scores[
         :MAX_ITEM_COUNT
     ]
 
     # Merge and sort results by score
     merged_sorted_result_ids = merge_and_sort_query_results(
-        semantic_query_result_ids_with_scores, graph_query_result_ids_with_scores
+        semantic_query_result_ids_with_scores, structured_query_result_ids_with_scores
     )
 
     # Convert to item objects

@@ -1,5 +1,5 @@
 from backend.db import database
-from backend.db.models import *
+from backend.models.models import *
 from backend.nlp import embedding
 
 

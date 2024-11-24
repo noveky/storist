@@ -1,6 +1,8 @@
 from . import psql_parser
+
+from utils import utils
 from backend.nlp import completion
-from backend import llm_prompts, utils
+from backend import llm_prompts
 
 MODEL = "gpt-4o-mini"
 

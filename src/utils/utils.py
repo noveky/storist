@@ -61,6 +61,14 @@ def dump_yaml(data: typing.Any, **kwargs) -> str:
     return yaml.dump(data, allow_unicode=True, **kwargs)
 
 
+def load_json(json_str: str) -> typing.Any:
+    return json.loads(json_str)
+
+
+def load_yaml(yaml_str: str) -> typing.Any:
+    return yaml.safe_load(yaml_str)
+
+
 def extract_code_blocks(
     text: str, target_cls: str | None = None
 ) -> list[tuple[str, str]]:
@@ -78,7 +86,7 @@ def extract_json(text: str) -> tuple[str, typing.Any]:
         raise ValueError("Expected exactly one JSON code block in the text")
 
     json_code = str(json_codes[0]).strip()
-    data = json.loads(json_code)
+    data = load_json(json_code)
     return json_code, data
 
 
@@ -89,7 +97,7 @@ def extract_yaml(text: str) -> tuple[str, typing.Any]:
         raise ValueError("Expected exactly one YAML code block in the text")
 
     yaml_code = str(yaml_codes[0]).strip()
-    data = yaml.safe_load(yaml_code)
+    data = load_yaml(yaml_code)
 
     return yaml_code, data
 

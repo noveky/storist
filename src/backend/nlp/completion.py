@@ -1,4 +1,4 @@
-from backend import utils
+from utils import utils
 
 import openai, openai_streaming, typing, dotenv, os
 from openai.types.chat import ChatCompletionMessage
