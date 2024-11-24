@@ -31,7 +31,11 @@ def log_error(e: Exception, retry: bool = False):
         print("Retrying...")
 
 
-async def try_loop_async(func: typing.Callable, max_retries: int = 3):
+async def try_loop_async(
+    func: typing.Callable,
+    max_retries: int = 3,
+    raise_exception: bool = True,
+):
     exception = Exception()
     for num_retry in range(max_retries, -1, -1):
         try:
@@ -39,10 +43,16 @@ async def try_loop_async(func: typing.Callable, max_retries: int = 3):
         except Exception as e:
             exception = e
             log_error(e, retry=num_retry > 0)
-    raise exception
+    if raise_exception:
+        raise exception
+    return None
 
 
-def try_loop(func: typing.Callable, max_retries: int = 3):
+def try_loop(
+    func: typing.Callable,
+    max_retries: int = 3,
+    raise_exception: bool = True,
+):
     exception = Exception()
     for num_retry in range(max_retries, -1, -1):
         try:
@@ -50,7 +60,9 @@ def try_loop(func: typing.Callable, max_retries: int = 3):
         except Exception as e:
             exception = e
             log_error(e, retry=num_retry > 0)
-    raise exception
+    if raise_exception:
+        raise exception
+    return None
 
 
 def dump_json(data: typing.Any, **kwargs) -> str:

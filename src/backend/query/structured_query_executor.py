@@ -1,6 +1,6 @@
-from backend.db import database
+from backend.repositories import triple_repository
 from backend.models.models import *
-from backend.nlp import embedding
+from backend.nlp import embedding_handler
 from .psql_ast import *
 
 import math
@@ -66,12 +66,12 @@ async def execute_structured_query(query: SelectStmt):
     text_vector_map = {
         text: vector
         for text, vector in zip(
-            texts_to_embed, await embedding.get_embeddings(texts_to_embed)
+            texts_to_embed, await embedding_handler.get_text_embeddings(texts_to_embed)
         )
     }
 
     # Retrieve all triples
-    triples = database.retrieve_triples()
+    triples = triple_repository.retrieve_triples()
 
     # Populate item_ids and item_triples_map
     item_ids = set()
@@ -114,7 +114,7 @@ async def execute_structured_query(query: SelectStmt):
                         query_attr = expr.operands[0].name
                         score = 0
                         for triple in item_triples:
-                            attr_score = embedding.cosine_similarity(
+                            attr_score = embedding_handler.cosine_similarity(
                                 text_vector_map[query_attr],
                                 triple.attr_embedding_vector,
                             )
@@ -123,7 +123,7 @@ async def execute_structured_query(query: SelectStmt):
                             ):
                                 query_value = expr.operands[1].value
                                 value_score = (
-                                    embedding.cosine_similarity(
+                                    embedding_handler.cosine_similarity(
                                         text_vector_map[query_value],
                                         triple.value_embedding_vector,
                                     )

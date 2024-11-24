@@ -1,7 +1,7 @@
 from . import psql_parser
 
 from utils import utils
-from backend.nlp import completion
+from backend.nlp import completion_handler
 from backend import llm_prompts
 
 MODEL = "gpt-4o-mini"
@@ -28,7 +28,7 @@ async def interpret_query(query: str) -> psql_parser.SelectStmt:
     async def try_func():
         nonlocal sql_parse_tree
 
-        response = await completion.request_completion(
+        response = await completion_handler.request_completion(
             model=MODEL,
             system_prompt=system_prompt,
             user_prompt=user_prompt,

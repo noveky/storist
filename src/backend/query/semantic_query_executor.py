@@ -1,14 +1,14 @@
-from backend.db import database
 from backend.models.models import *
-from backend.nlp import embedding
+from backend.repositories import triple_repository
+from backend.nlp import embedding_handler
 
 
 async def execute_semantic_query(query: str):
     # Embed the query
-    query_vector = await embedding.get_embeddings([query])[0]
+    query_vector = await embedding_handler.get_text_embeddings([query])[0]
 
     # Retrieve all triples
-    triples = database.retrieve_triples()
+    triples = triple_repository.retrieve_triples()
 
     # Populate item_ids and item_triples_map
     item_ids = set()
@@ -22,8 +22,10 @@ async def execute_semantic_query(query: str):
     # Compute the score for each item
     item_score_map = {}
     for item_id in item_ids:
-        item = database.construct_item_object(item_id, item_triples_map[item_id])
-        item_score_map[item_id] = embedding.cosine_similarity(
+        item = triple_repository.construct_item_object(
+            item_id, item_triples_map[item_id]
+        )
+        item_score_map[item_id] = embedding_handler.cosine_similarity(
             query_vector, item.props["semantic_embedding_vector"]
         )
 

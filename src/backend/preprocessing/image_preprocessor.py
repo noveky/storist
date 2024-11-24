@@ -1,11 +1,11 @@
 from utils import utils
 from backend import llm_prompts
-from backend.nlp import completion
+from backend.nlp import completion_handler
 
 MODEL = "gpt-4o"
 
 
-async def preprocess_image(image_base64: str):
+async def preprocess_image(image_base64: str) -> dict:
     system_prompt = llm_prompts.format_prompt(
         llm_prompts.IMAGE_PREPROCESSOR_SYSTEM_PROMPT
     )
@@ -16,7 +16,7 @@ async def preprocess_image(image_base64: str):
             "image_url": {"url": image_base64},
         },
     ]
-    response = await completion.request_completion(
+    response = await completion_handler.request_completion(
         model=MODEL,
         system_prompt=None,
         user_prompt=user_prompt,
@@ -25,7 +25,6 @@ async def preprocess_image(image_base64: str):
     return data["image"]
 
 
-async def preprocess_image_file(path: str):
-    print(f"Start preprocessing image file {path}")
+async def preprocess_image_file(path: str) -> dict:
     image_base64 = utils.encode_image_to_base64_data_uri(path)
     return await preprocess_image(image_base64)

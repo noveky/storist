@@ -64,7 +64,7 @@ def load_previous_states(paths) -> dict:
 
 def save_current_states(states):
     with open(config.FILE_STATES_FILE, "w") as f:
-        utils.dump_json(states, f, indent=4)
+        f.write(utils.dump_json(states, indent=4))
 
 
 def get_current_state(path):
@@ -192,10 +192,10 @@ if __name__ == "__main__":  # TODO Remove this
     def on_moved(src_path, dest_path):
         print(f"Custom handler: File moved from {src_path} to {dest_path}")
 
-    watch_paths = [".."]
+    watch_directories = [".."]
 
     monitor = FileSystemWatcher(
-        watch_paths,
+        watch_directories,
         create_event_handler=on_created,
         delete_event_handler=on_deleted,
         modify_event_handler=on_modified,

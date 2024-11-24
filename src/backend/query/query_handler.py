@@ -1,4 +1,4 @@
-from backend.db import database
+from backend.repositories import triple_repository
 from backend.models.models import *
 from . import (
     semantic_query_executor,
@@ -41,7 +41,7 @@ async def handle_query(query: str):
     )
 
     # Convert to item objects
-    result_items = await database.get_items_by_ids(
+    result_items = await triple_repository.get_items_by_ids(
         item_id for item_id, _ in merged_sorted_result_ids
     )
 

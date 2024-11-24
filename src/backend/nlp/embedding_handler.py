@@ -10,10 +10,10 @@ client = openai.AsyncOpenAI(
 )
 
 
-async def get_embeddings(
-    input: list[str], model: str = "text-embedding-3-large"
+async def get_text_embeddings(
+    input_list: list[str], model: str = "text-embedding-3-large"
 ) -> list[np.ndarray]:
-    response = await client.embeddings.create(model=model, input=input)
+    response = await client.embeddings.create(model=model, input=input_list)
     return list(np.array(data.embedding) for data in response.data)
 
 
