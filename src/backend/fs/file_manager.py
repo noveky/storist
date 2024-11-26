@@ -40,11 +40,12 @@ def move_event_handler(src_path, dest_path):
     file_repository.move_file(src_path=src_path, dest_path=dest_path)
 
 
-def start_watcher(watch_directories):
+def start_watcher():
     global watcher
 
+    watch_directories = file_repository.query_all_watch_directories()
     watcher = file_system_watcher.FileSystemWatcher(
-        list(watch_directories),
+        paths=[watch_directory.path for watch_directory in watch_directories],
         create_event_handler=create_event_handler,
         delete_event_handler=delete_event_handler,
         modify_event_handler=modify_event_handler,
@@ -53,7 +54,9 @@ def start_watcher(watch_directories):
     watcher.start()
 
 
-def change_watch_directories(watch_directories):
+def on_watch_directories_change():
+    watch_directories = file_repository.query_all_watch_directories()
+
     for path in watcher.paths:
         if path not in watch_directories:
             watcher.remove_path(path)
@@ -62,7 +65,5 @@ def change_watch_directories(watch_directories):
         if path not in watcher.paths:
             watcher.add_path(path)
 
-    file_repository.change_watch_directories(watch_directories)
 
-
-start_watcher(file_repository.watch_directories)
+file_repository.watch_directories_change_handlers.append(on_watch_directories_change)

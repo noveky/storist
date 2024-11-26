@@ -55,7 +55,8 @@ def load_previous_states(paths) -> dict:
     states = {}
     if os.path.exists(config.FILE_STATES_FILE):
         with open(config.FILE_STATES_FILE, "r") as f:
-            states = utils.load_json(f)
+            json_str = f.read()
+        states = utils.load_json(json_str)
     for path in paths:
         if path not in states:
             states[path] = get_current_state(path)
@@ -64,7 +65,7 @@ def load_previous_states(paths) -> dict:
 
 def save_current_states(states):
     with open(config.FILE_STATES_FILE, "w") as f:
-        f.write(utils.dump_json(states, indent=4))
+        f.write(utils.dump_json(states))
 
 
 def get_current_state(path):
@@ -141,6 +142,9 @@ class FileSystemWatcher:
 
     def start_observer(self, path):
         if path in self.observers:
+            return
+
+        if not os.path.isdir(path):
             return
 
         self.compare_states(self.current_states[path], get_current_state(path), path)

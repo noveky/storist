@@ -1,18 +1,15 @@
 from utils import utils
-from backend.preprocessing import image_preprocessor
-from backend.query import query_handler
-from backend.fs import file_system_watcher
+from config import config
+from ui.app import App
+from backend.fs import file_manager
 
-import asyncio
+import os
 from sklearn.metrics.pairwise import cosine_similarity
 
 
-async def main():
-    print(await image_preprocessor.preprocess_image("data/test.png"))
-    query = input("Query: ")
-    result_items = await query_handler.handle_query(query)
-    print(result_items)
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    os.makedirs(config.DATA_DIR, exist_ok=True)
+    file_manager.start_watcher()
+
+    app = App()
+    app.mainloop()

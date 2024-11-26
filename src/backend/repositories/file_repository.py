@@ -8,35 +8,39 @@ from backend.nlp import embedding_handler
 
 files = dict[str, File]()
 watch_directories = dict[str, WatchDirectory]()
+watch_directories_change_handlers = []
 
 
 def load_files():
     global files
     if os.path.exists(config.FILES_FILE):
         with open(config.FILES_FILE, "r") as f:
-            files = {
-                file_dict["id"]: File(**file_dict) for file_dict in utils.load_json(f)
-            }
+            json_str = f.read()
+        files = {
+            file_dict["id"]: File(**file_dict)
+            for file_dict in utils.load_json(json_str)
+        }
 
 
 def load_watch_directories():
     global watch_directories
     if os.path.exists(config.WATCH_DIRECTORIES_FILE):
         with open(config.WATCH_DIRECTORIES_FILE, "r") as f:
-            watch_directories = {
-                watch_path_dict["path"]: WatchDirectory(**watch_path_dict)
-                for watch_path_dict in utils.load_json(f)
-            }
+            json_str = f.read()
+        watch_directories = {
+            watch_path_dict["path"]: WatchDirectory(**watch_path_dict)
+            for watch_path_dict in utils.load_json(json_str)
+        }
 
 
 def save_files():
     with open(config.FILES_FILE, "w") as f:
-        f.write(utils.dump_json(files.values(), indent=4))
+        f.write(utils.dump_json(files.values()))
 
 
 def save_watch_directories():
     with open(config.WATCH_DIRECTORIES_FILE, "w") as f:
-        f.write(utils.dump_json(watch_directories.values(), indent=4))
+        f.write(utils.dump_json(list(watch_directories.values())))
 
 
 def new_file_id():
@@ -67,7 +71,7 @@ def create_file(file_path: str) -> File:
 
 
 def delete_file(file_path: str):
-    file_id = get_file_by_path(file_path)
+    file_id = get_file_by_path(file_path).id
     if file_id:
         del files[file_id]
         save_files()
@@ -85,18 +89,28 @@ def save_file_metadata(file_path: str, metadata: dict):
     save_files()
 
 
-def change_watch_directories(new_watch_directories):
-    global watch_directories
-
-    for path in watch_directories:
-        if path not in new_watch_directories:
-            del watch_directories[path]
-
-    for path in new_watch_directories:
-        if path not in watch_directories:
-            watch_directories[path] = WatchDirectory(path=path)
-
+def on_watch_directories_change():
+    for handler in watch_directories_change_handlers:
+        handler()
     save_watch_directories()
+
+
+def create_watch_directory(path: str, associated_tags: list[Tag]) -> WatchDirectory:
+    watch_directory = WatchDirectory(
+        path=path, associated_tag_ids=[tag.id for tag in associated_tags]
+    )
+    watch_directories[path] = watch_directory
+    on_watch_directories_change()
+    return watch_directory
+
+
+def delete_watch_directory(watch_directory: WatchDirectory):
+    del watch_directories[watch_directory.path]
+    on_watch_directories_change()
+
+
+def query_all_watch_directories() -> list[WatchDirectory]:
+    return list(watch_directories.values())
 
 
 def query_most_relevant_files(
@@ -123,5 +137,5 @@ def query_most_relevant_files(
     return [file for file, _ in scores]
 
 
-files = load_files()
-watch_directories = load_watch_directories()
+load_files()
+load_watch_directories()
