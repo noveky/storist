@@ -1,35 +1,42 @@
 from backend.models.models import *
-from backend.repositories import triple_repository
+from backend.repositories import file_repository, tag_repository
 from backend.nlp import embedding_handler
 
+import typing
 
-async def execute_semantic_query(query: str):
+
+async def execute_semantic_query(
+    query_text: str, query_type: typing.Literal["title", "description"]
+):
     # Embed the query
-    query_vector = await embedding_handler.get_text_embeddings([query])[0]
+    query_vector = (await embedding_handler.get_text_embeddings([query_text]))[0]
 
-    # Retrieve all triples
-    triples = triple_repository.retrieve_triples()
+    # Retrieve all documents
+    files = file_repository.query_all_files()
+    file_tags_map = {
+        file.id: [tag_repository.get_tag_by_id(tag_id) for tag_id in file.tag_ids]
+        for file in files
+    }
+    docs = [Document.from_file(file, file_tags_map[file.id]) for file in files]
+    docs: list[Document] = [doc for doc in docs if doc is not None]
 
-    # Populate item_ids and item_triples_map
-    item_ids = set()
-    item_triples_map: dict[int, list[Triple]] = {}
-    async for triple in triples:
-        item_ids.add(triple.item_id)
-        if triple.item_id not in item_triples_map:
-            item_triples_map[triple.item_id] = []
-        item_triples_map[triple.item_id].append(triple)
-
-    # Compute the score for each item
-    item_score_map = {}
-    for item_id in item_ids:
-        item = triple_repository.construct_item_object(
-            item_id, item_triples_map[item_id]
+    # Compute the score for each document
+    doc_scores = {}  # {doc: score}
+    for i, doc in enumerate(docs):
+        doc_scores[i] = embedding_handler.cosine_similarity(
+            query_vector,
+            np.array(
+                doc.file.metadata[
+                    (
+                        "title_embedding"
+                        if query_type == "title"
+                        else "description_embedding"
+                    )
+                ]
+            ),
         )
-        item_score_map[item_id] = embedding_handler.cosine_similarity(
-            query_vector, item.props["semantic_embedding_vector"]
-        )
 
-    # Zip the item ids with their corresponding scores
-    item_ids_with_scores = [(sid, item_score_map[sid]) for sid in item_ids]
+    # Zip the documents with their corresponding scores
+    docs_with_scores = [(doc, doc_scores[i]) for i, doc in enumerate(docs)]
 
-    return item_ids_with_scores
+    return docs_with_scores

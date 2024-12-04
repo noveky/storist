@@ -14,32 +14,32 @@ watch_directories_change_handlers = []
 def load_files():
     global files
     if os.path.exists(config.FILES_FILE):
-        with open(config.FILES_FILE, "r") as f:
+        with open(config.FILES_FILE, "r", encoding="utf-8") as f:
             json_str = f.read()
         files = {
             file_dict["id"]: File(**file_dict)
-            for file_dict in utils.load_json(json_str)
+            for file_dict in (utils.load_json(json_str) or [])
         }
 
 
 def load_watch_directories():
     global watch_directories
     if os.path.exists(config.WATCH_DIRECTORIES_FILE):
-        with open(config.WATCH_DIRECTORIES_FILE, "r") as f:
+        with open(config.WATCH_DIRECTORIES_FILE, "r", encoding="utf-8") as f:
             json_str = f.read()
         watch_directories = {
             watch_path_dict["path"]: WatchDirectory(**watch_path_dict)
-            for watch_path_dict in utils.load_json(json_str)
+            for watch_path_dict in (utils.load_json(json_str) or [])
         }
 
 
 def save_files():
-    with open(config.FILES_FILE, "w") as f:
-        f.write(utils.dump_json(files.values()))
+    with open(config.FILES_FILE, "w", encoding="utf-8") as f:
+        f.write(utils.dump_json(list(files.values())))
 
 
 def save_watch_directories():
-    with open(config.WATCH_DIRECTORIES_FILE, "w") as f:
+    with open(config.WATCH_DIRECTORIES_FILE, "w", encoding="utf-8") as f:
         f.write(utils.dump_json(list(watch_directories.values())))
 
 
@@ -52,41 +52,51 @@ def get_file_by_id(file_id: str) -> File | None:
 
 
 def get_file_by_path(file_path: str) -> File | None:
-    for id, path in files.items():
-        if path == file_path:
-            return id
+    for file in files.values():
+        if file.path == os.path.normpath(file_path):
+            return file
     return None
 
 
 def get_watch_path_by_path(path: str) -> WatchDirectory | None:
-    return watch_directories.get(path, None)
+    return watch_directories.get(os.path.normpath(path), None)
 
 
 def create_file(file_path: str) -> File:
     file_id = new_file_id()
-    file = File(id=file_id, path=file_path)
+    file = File(id=file_id, path=os.path.normpath(file_path), tag_ids=[], metadata={})
     files[file_id] = file
     save_files()
     return file
 
 
+def get_or_create_file(file_path: str) -> File:
+    if file := get_file_by_path(file_path):
+        return file
+    return create_file(file_path)
+
+
 def delete_file(file_path: str):
-    file_id = get_file_by_path(file_path).id
-    if file_id:
+    file = get_file_by_path(file_path)
+    if file:
+        file_id = file.id
         del files[file_id]
         save_files()
 
 
 def move_file(src_path: str, dest_path: str):
-    file_id = get_file_by_path(src_path)
-    if file_id:
-        files[file_id].path = dest_path
+    file = get_file_by_path(src_path)
+    if file:
+        files[file.id].path = dest_path
         save_files()
 
 
 def save_file_metadata(file_path: str, metadata: dict):
-    files[get_file_by_path(file_path).id].metadata = metadata
-    save_files()
+    file = get_file_by_path(file_path)
+    if file:
+        files[file.id].metadata = metadata
+        save_files()
+        print(f"Saved metadata for file: {file_path}")
 
 
 def on_watch_directories_change():
@@ -97,9 +107,10 @@ def on_watch_directories_change():
 
 def create_watch_directory(path: str, associated_tags: list[Tag]) -> WatchDirectory:
     watch_directory = WatchDirectory(
-        path=path, associated_tag_ids=[tag.id for tag in associated_tags]
+        path=os.path.normpath(path),
+        associated_tag_ids=[tag.id for tag in associated_tags],
     )
-    watch_directories[path] = watch_directory
+    watch_directories[os.path.normpath(path)] = watch_directory
     on_watch_directories_change()
     return watch_directory
 
@@ -107,6 +118,10 @@ def create_watch_directory(path: str, associated_tags: list[Tag]) -> WatchDirect
 def delete_watch_directory(watch_directory: WatchDirectory):
     del watch_directories[watch_directory.path]
     on_watch_directories_change()
+
+
+def query_all_files() -> list[File]:
+    return list(files.values())
 
 
 def query_all_watch_directories() -> list[WatchDirectory]:

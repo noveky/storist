@@ -34,10 +34,16 @@ class Item:
 class File:
     id: str
     path: str
+    tag_ids: list[str]
     metadata: dict
 
     def to_dict(self):
-        return {"id": self.id, "path": self.path, "metadata": self.metadata}
+        return {
+            "id": self.id,
+            "path": self.path,
+            "tag_ids": self.tag_ids,
+            "metadata": self.metadata,
+        }
 
     def __repr__(self):
         return f"File({repr(self.to_dict())})"
@@ -94,22 +100,30 @@ class Document:
     file: File
     file_path: str
     content_type: ContentType
-    date: str
+    created_at: datetime.datetime | None
     title: str
     description: str
+    texts: list[str]
     tags: list[Tag]
 
-    def from_file(file: File, tags: list[Tag]) -> "Document":
-        return Document(
-            file=file,
-            file_path=file.path,
-            content_type=file.metadata["content_type"],
-            date=datetime.datetime.fromtimestamp(
-                file.metadata["datetime_created"]
-            ).strftime(r"%Y-%m-%d %H:%M:%S"),
-            title=file.metadata["title"],
-            description=file.metadata["description"],
-            tags=tags,
+    def from_file(file: File, tags: list[Tag]) -> "Document | None":
+        return (
+            Document(
+                file=file,
+                file_path=file.path,
+                content_type=file.metadata.get("content_type", None),
+                created_at=(
+                    datetime.datetime.fromtimestamp(file.metadata["created_at"])
+                    if "created_at" in file.metadata
+                    else None
+                ),
+                title=file.metadata.get("title", file.path),
+                description=file.metadata.get("description", ""),
+                texts=file.metadata.get("texts", []),
+                tags=tags,
+            )
+            if file.metadata.get("content_type", None) is not None
+            else None
         )
 
     def to_dict(self):
@@ -117,9 +131,10 @@ class Document:
             "file_id": self.file.id,
             "file_path": self.file_path,
             "content_type": self.content_type,
-            "date": self.date,
+            "created_at": self.created_at,
             "title": self.title,
             "description": self.description,
+            "texts": self.texts,
             "tags": [tag.name for tag in self.tags],
         }
 

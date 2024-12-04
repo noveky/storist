@@ -65,6 +65,8 @@ Operator = (
     | typing.Literal["NOT IN"]
     | typing.Literal["LIKE"]
     | typing.Literal["NOT LIKE"]
+    | typing.Literal["SLIKE"]
+    | typing.Literal["NSLIKE"]
 )
 Operand = Identifier | Value | FunctionCall
 ConditionExpr = Operation | Operand

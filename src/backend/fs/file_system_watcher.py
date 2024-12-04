@@ -52,11 +52,12 @@ class ChangeHandler(FileSystemEventHandler):
 
 
 def load_previous_states(paths) -> dict:
+    print("Loading previous monitoring states...")
     states = {}
     if os.path.exists(config.FILE_STATES_FILE):
-        with open(config.FILE_STATES_FILE, "r") as f:
+        with open(config.FILE_STATES_FILE, "r", encoding="utf-8") as f:
             json_str = f.read()
-        states = utils.load_json(json_str)
+        states = utils.load_json(json_str) or {}
     for path in paths:
         if path not in states:
             states[path] = get_current_state(path)
@@ -64,7 +65,8 @@ def load_previous_states(paths) -> dict:
 
 
 def save_current_states(states):
-    with open(config.FILE_STATES_FILE, "w") as f:
+    print("Saving current monitoring states...")
+    with open(config.FILE_STATES_FILE, "w", encoding="utf-8") as f:
         f.write(utils.dump_json(states))
 
 
@@ -104,41 +106,50 @@ class FileSystemWatcher:
 
     def stop(self):
         self.running = False
-        self.monitor_thread.join()
+        try:
+            self.monitor_thread.join()
+        except:
+            pass
+        self.remove_unused_paths()
         save_current_states(self.current_states)
 
     def monitor_directories(self):
         for path in self.paths:
             self.start_observer(path)
 
-        try:
-            while self.running:
-                time.sleep(1)
-        finally:
-            self.stop()
+    def remove_unused_paths(self):
+        for path in list(self.current_states.keys()):
+            if path not in self.paths:
+                self.current_states.pop(path)
 
-    def compare_states(self, previous_state: dict, current_state: dict, base_path: str):
-        previous_files = set(previous_state.keys())
-        current_files = set(current_state.keys())
+    def compare_states(
+        self, previous_states: dict, current_states: dict, base_path: str
+    ):
+        print(f"Comparing states in {base_path}...")
+
+        previous_files = set(previous_states.keys())
+        current_files = set(current_states.keys())
 
         created_files = current_files - previous_files
         deleted_files = previous_files - current_files
         modified_files = {
             f
             for f in current_files & previous_files
-            if previous_state[f] != current_state[f]
+            if previous_states[f] != current_states[f]
         }
 
-        print(f"\nChanges in directory: {base_path}")
-        for f in created_files:
-            if self.create_event_handler:
-                self.create_event_handler(f)
-        for f in deleted_files:
-            if self.delete_event_handler:
-                self.delete_event_handler(f)
-        for f in modified_files:
-            if self.modify_event_handler:
-                self.modify_event_handler(f)
+        if len(created_files) + len(deleted_files) + len(modified_files) != 0:
+            print()
+            print(f"Changes in directory: {base_path}")
+            for f in created_files:
+                if self.create_event_handler:
+                    self.create_event_handler(f)
+            for f in deleted_files:
+                if self.delete_event_handler:
+                    self.delete_event_handler(f)
+            for f in modified_files:
+                if self.modify_event_handler:
+                    self.modify_event_handler(f)
 
     def start_observer(self, path):
         if path in self.observers:
@@ -147,7 +158,9 @@ class FileSystemWatcher:
         if not os.path.isdir(path):
             return
 
-        self.compare_states(self.current_states[path], get_current_state(path), path)
+        current_state = get_current_state(path)
+        self.compare_states(self.current_states[path], current_state, path)
+        self.current_states[path] = current_state
         event_handler = ChangeHandler(
             self.current_states[path],
             path,

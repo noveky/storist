@@ -4,12 +4,15 @@ from ui.app import App
 from backend.fs import file_manager
 
 import os
-from sklearn.metrics.pairwise import cosine_similarity
 
 
 if __name__ == "__main__":
-    os.makedirs(config.DATA_DIR, exist_ok=True)
-    file_manager.start_watcher()
+    try:
+        os.makedirs(config.DATA_DIR, exist_ok=True)
+        file_manager.start_watcher()
+        file_manager.gather_unpreprocessed_files()
 
-    app = App()
-    app.mainloop()
+        app = App()
+        app.mainloop()
+    finally:
+        file_manager.stop_watcher()

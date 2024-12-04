@@ -16,13 +16,24 @@ async def preprocess_image(image_base64: str) -> dict:
             "image_url": {"url": image_base64},
         },
     ]
-    response = await completion_handler.request_completion(
-        model=MODEL,
-        system_prompt=None,
-        user_prompt=user_prompt,
-    )
-    _, data = utils.extract_json(response)
-    return data["image"]
+
+    async def try_func():
+        nonlocal data
+        response = await completion_handler.request_completion(
+            model=MODEL,
+            system_prompt=None,
+            user_prompt=user_prompt,
+            max_retries=1,
+        )
+        _, data = utils.extract_json(response)
+        # TODO Verify data validity
+
+    data = None
+    try:
+        await utils.try_loop_async(try_func, max_retries=3)
+        return {"texts": data["文本"], "description": data["描述"]}
+    except:
+        return None
 
 
 async def preprocess_image_file(path: str) -> dict:

@@ -1,4 +1,5 @@
 from .search_page_frame import SearchPageFrame
+from .all_docs_page_frame import AllDocsPageFrame
 from .data_sources_page_frame import DataSourcesPageFrame
 
 import customtkinter as ctk
@@ -86,6 +87,7 @@ class App(ctk.CTk):
         # Page frames
 
         self.search_page_frame = SearchPageFrame(self.main_area)
+        self.all_docs_page_frame = AllDocsPageFrame(self.main_area)
         self.data_sources_page_frame = DataSourcesPageFrame(self.main_area)
 
         # # Right panel
@@ -103,6 +105,8 @@ class App(ctk.CTk):
 
     def show_all_docs_page(self):
         self.clear_main_area()
+        self.all_docs_page_frame.pack()
+        self.all_docs_page_frame.fetch_documents()
 
     def show_data_sources_page(self):
         self.clear_main_area()

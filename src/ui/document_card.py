@@ -5,17 +5,15 @@ import customtkinter as ctk
 from PIL import Image
 import datetime
 
+TEXTS_LINE_MAX_DISPLAY_LENGTH = 100
+TEXTS_MAX_DISPLAY_LINES = 5
+
 
 class DocumentCard(ctk.CTkFrame):
     def __init__(
         self,
         master,
         document: Document,
-        title: str,
-        description: str,
-        tags: list[str],
-        image: Image.Image | None,
-        date: datetime.date,
         click_handler,
     ):
         super().__init__(master, corner_radius=12, fg_color="#f9f9fa")
@@ -24,6 +22,9 @@ class DocumentCard(ctk.CTkFrame):
         self.document = document
 
         # Thumbnail
+        image = (
+            Image.open(document.file_path) if document.content_type == "image" else None
+        )
         if image is not None:
             thumbnail_size = image.size
             if thumbnail_size[0] > (MAX_THUMBNAIL_WIDTH := 120):
@@ -47,7 +48,7 @@ class DocumentCard(ctk.CTkFrame):
         # Title
         self.title_label = ctk.CTkLabel(
             self,
-            text=title,
+            text=document.title,
             font=ctk.CTkFont(size=18, weight="bold"),
             anchor="nw",
             justify="left",
@@ -64,7 +65,7 @@ class DocumentCard(ctk.CTkFrame):
         # Description
         self.description_label = ctk.CTkLabel(
             self,
-            text=description,
+            text=document.description,
             font=ctk.CTkFont(size=14),
             anchor="nw",
             justify="left",
@@ -80,10 +81,55 @@ class DocumentCard(ctk.CTkFrame):
             ),
         )
 
+        # Texts
+        if document.content_type == "image" and document.texts:
+            texts = [
+                (
+                    text[: TEXTS_LINE_MAX_DISPLAY_LENGTH - 3] + "..."
+                    if len(text) > TEXTS_LINE_MAX_DISPLAY_LENGTH
+                    else text
+                )
+                for text in document.texts[:TEXTS_MAX_DISPLAY_LINES]
+            ]
+            if len(document.texts) > TEXTS_MAX_DISPLAY_LINES:
+                texts.append(
+                    f"... and {len(document.texts) - TEXTS_MAX_DISPLAY_LINES} more"
+                )
+            texts_str = "\n".join(texts)
+
+            self.texts_frame = ctk.CTkFrame(
+                self, corner_radius=0, fg_color="transparent", height=0
+            )
+            self.texts_frame.grid(
+                row=2, column=0, columnspan=2, sticky="ew", padx=(0, 0), pady=(0, 12)
+            )
+            self.texts_frame.grid_columnconfigure(0, weight=0)
+            self.texts_frame.grid_columnconfigure(1, weight=1)
+            self.texts_label = ctk.CTkLabel(
+                self.texts_frame,
+                text="包含文本：",
+                font=ctk.CTkFont(size=14, weight="bold"),
+                anchor="nw",
+                justify="left",
+            )
+            self.texts_label.grid(
+                row=0, column=0, sticky="nw", padx=(24, 0), pady=(0, 0)
+            )
+            self.texts_content_label = ctk.CTkLabel(
+                self.texts_frame,
+                text=texts_str,
+                font=ctk.CTkFont(size=14),
+                anchor="nw",
+                justify="left",
+            )
+            self.texts_content_label.grid(
+                row=0, column=1, sticky="new", padx=(12, 12), pady=(0, 0)
+            )
+
         # Bottom frame
         self.bottom_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
         self.bottom_frame.grid(
-            row=2, column=0, columnspan=2, sticky="ew", padx=(0, 0), pady=(12, 8)
+            row=3, column=0, columnspan=2, sticky="ew", padx=(0, 0), pady=(12, 8)
         )
         self.bottom_frame.grid_columnconfigure(0, weight=1)
 
@@ -92,15 +138,18 @@ class DocumentCard(ctk.CTkFrame):
             self.bottom_frame, corner_radius=0, fg_color="transparent", height=0
         )
         self.tags_frame.grid(row=0, column=0, sticky="ew", padx=(16, 0), pady=0)
-        for tag in tags:
+        for tag in document.tags:
             tag_widget = TagWidget(self.tags_frame, tag)
             tag_widget.pack(side="left", padx=6, pady=0)
 
         # Date
-        self.date_label = ctk.CTkLabel(
-            self.bottom_frame, text=date.strftime(r"%Y-%m-%d"), text_color="#777777"
-        )
-        self.date_label.grid(row=0, column=1, sticky="e", padx=(0, 24), pady=0)
+        if document.created_at is not None:
+            self.date_label = ctk.CTkLabel(
+                self.bottom_frame,
+                text=document.created_at.strftime(r"%Y-%m-%d %H:%M:%S"),
+                text_color="#777777",
+            )
+            self.date_label.grid(row=0, column=1, sticky="e", padx=(0, 24), pady=0)
 
         # Click event
         def bind_click_event(widget):
@@ -108,7 +157,8 @@ class DocumentCard(ctk.CTkFrame):
             for child in widget.winfo_children():
                 bind_click_event(child)
 
-        bind_click_event(self)
+        if click_handler:
+            bind_click_event(self)
 
 
 if __name__ == "__main__":  # TODO Remove this

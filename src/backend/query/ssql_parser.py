@@ -1,8 +1,8 @@
-from .psql_ast import *
+from .ssql_ast import *
 
 import lark, re
 
-psql_grammar = r"""
+ssql_grammar = r"""
     start: select_stmt
 
     select_stmt: "SELECT" "*" "FROM" identifier "WHERE" condition ";"?
@@ -22,7 +22,7 @@ psql_grammar = r"""
         | operand "BETWEEN" operand "AND" operand -> between_op
         | operand
 
-    BINARY_COMP_OPERATOR: "=" | "<>" | "<" | ">" | "<=" | ">=" | "LIKE" | "NOT LIKE" | "IN" | "NOT IN" | "IS"
+    BINARY_COMP_OPERATOR: "=" | "<>" | "<" | ">" | "<=" | ">=" | "LIKE" | "NOT LIKE" | "IN" | "NOT IN" | "IS" | "IS NOT" | "SLIKE" | "NSLIKE"
 
     ?operand: identifier
         | value
@@ -39,7 +39,7 @@ psql_grammar = r"""
     STRING: /'[^']*'/
     NUMBER: /\d+/
     REAL: /\d+\.\d+/
-    DATE: /\d{4}-\d{2}-\d{2}/
+    DATE: /'\d{4}-\d{2}-\d{2}'/
     BOOL: "TRUE" | "FALSE"
     NULL: "NULL"
 
@@ -49,7 +49,7 @@ psql_grammar = r"""
 
 
 @lark.v_args(inline=True)
-class PSQLTransformer(lark.Transformer):
+class SSQLTransformer(lark.Transformer):
     def start(self, select_stmt: SelectStmt) -> SelectStmt:
         return select_stmt
 
@@ -110,8 +110,10 @@ class PSQLTransformer(lark.Transformer):
             return Value(int(value_str))
         elif re.match(r"^\d+\.\d+$", value_str):
             return Value(float(value_str))
-        elif re.match(r"^\d{4}-\d{2}-\d{2}$", value_str):
-            return Value(datetime.datetime.strptime(value_str, r"%Y-%m-%d").date())
+        elif re.match(r"^'\d{4}-\d{2}-\d{2}'$", value_str):
+            return Value(
+                datetime.datetime.strptime(value_str[1:-1], r"%Y-%m-%d").date()
+            )
         elif value_str.startswith("'") and value_str.endswith("'"):
             return Value(value_str[1:-1])
         elif re.match(r"^(TRUE|FALSE)$", value_str, re.IGNORECASE):
@@ -129,8 +131,8 @@ class PSQLTransformer(lark.Transformer):
         return FunctionCall(str(func_name), list(arguments))
 
 
-psql_parser = lark.Lark(psql_grammar, parser="lalr", transformer=PSQLTransformer())
+ssql_parser = lark.Lark(ssql_grammar, parser="lalr", transformer=SSQLTransformer())
 
 
-def parse(psql_code: str) -> SelectStmt:
-    return psql_parser.parse(psql_code)
+def parse(ssql_code: str) -> SelectStmt:
+    return ssql_parser.parse(ssql_code)

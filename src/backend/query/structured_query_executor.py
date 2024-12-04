@@ -1,21 +1,32 @@
-from backend.repositories import triple_repository
+from backend.repositories import file_repository, tag_repository
 from backend.models.models import *
 from backend.nlp import embedding_handler
-from .psql_ast import *
-
-import math
+from .ssql_ast import *
 
 
 async def execute_structured_query(query: SelectStmt):
+    print(query)
 
     def transform_expr(expr, is_condition_expr: bool) -> typing.Any:
         if isinstance(expr, Identifier):
             if is_condition_expr:
-                return Operation("=", expr, Value(True))
+                return Operation(
+                    "=", expr, Value(True)
+                )  # Transform to explicit comparison with TRUE
         elif isinstance(expr, FunctionCall):
             raise NotImplementedError()
         elif isinstance(expr, Operation):
-            if all(isinstance(operand, Value) for operand in expr.operands):
+            if all(
+                operand.name in ("title", "description")
+                for operand in expr.operands
+                if isinstance(operand, Identifier)
+            ):
+                if expr.operator in ("LIKE", "NOT LIKE", "=", "<>"):
+                    return Operation(
+                        "SLIKE" if expr.operator in ("LIKE", "=") else "NSLIKE",
+                        *expr.operands
+                    )
+            elif all(isinstance(operand, Value) for operand in expr.operands):
                 if expr.operator == "OR":
                     return Value(any(operand.value for operand in expr.operands))
                 elif expr.operator == "AND":
@@ -39,10 +50,9 @@ async def execute_structured_query(query: SelectStmt):
                         expr.operands[0].value >= expr.operands[1].value
                         and expr.operands[1].value <= expr.operands[2].value
                     )
-            else:
+            elif expr.operator in ("OR", "AND"):
                 for i, operand in enumerate(expr.operands):
                     expr.operands[i] = transform_expr(operand, is_condition_expr=True)
-                # TODO Ensure the first operand is attribute
         return expr
 
     query.condition = transform_expr(query.condition, is_condition_expr=True)
@@ -50,12 +60,14 @@ async def execute_structured_query(query: SelectStmt):
     def collect_query_attributes(expr):
         nonlocal texts_to_embed
 
-        if isinstance(expr, Identifier):
-            texts_to_embed.add(expr.name)
-        elif isinstance(expr, FunctionCall):
+        if isinstance(expr, FunctionCall):
             for arg in expr.arguments:
                 collect_query_attributes(arg)
         elif isinstance(expr, Operation):
+            if expr.operator in ("LIKE", "NOT LIKE", "=", "<>"):
+                for operand in expr.operands:
+                    if isinstance(operand, Value) and isinstance(operand.value, str):
+                        texts_to_embed.add(operand.value)
             for operand in expr.operands:
                 collect_query_attributes(operand)
 
@@ -63,41 +75,44 @@ async def execute_structured_query(query: SelectStmt):
     collect_query_attributes(query.condition)
 
     texts_to_embed = list(texts_to_embed)
+    texts_to_embed_clean = [text.replace("%", "") for text in texts_to_embed]
+    texts_to_embed_clean = [
+        " " if text == "" else text for text in texts_to_embed_clean
+    ]
     text_vector_map = {
         text: vector
         for text, vector in zip(
-            texts_to_embed, await embedding_handler.get_text_embeddings(texts_to_embed)
+            texts_to_embed,
+            await embedding_handler.get_text_embeddings(texts_to_embed_clean),
         )
     }
 
-    # Retrieve all triples
-    triples = triple_repository.retrieve_triples()
+    # Retrieve all documents
+    files = file_repository.query_all_files()
+    file_tags_map = {
+        file.id: [tag_repository.get_tag_by_id(tag_id) for tag_id in file.tag_ids]
+        for file in files
+    }
+    docs = [Document.from_file(file, file_tags_map[file.id]) for file in files]
+    docs: list[Document] = [doc for doc in docs if doc is not None]
 
-    # Populate item_ids and item_triples_map
-    item_ids = set()
-    item_triples_map: dict[int, list[Triple]] = {}
-    async for triple in triples:
-        item_ids.add(triple.item_id)
-        if triple.item_id not in item_triples_map:
-            item_triples_map[triple.item_id] = []
-        item_triples_map[triple.item_id].append(triple)
+    doc_scores = {}  # {doc: score}
 
-    item_score_map = {}
-
-    for item_id in item_ids:
-        item_triples = item_triples_map[item_id]
+    for i, doc in enumerate(docs):
 
         def compute_score(expr) -> float:
-            nonlocal item_triples, text_vector_map
+            nonlocal text_vector_map
 
             if isinstance(expr, Value):
                 return 1 if bool(expr.value) else 0
             elif isinstance(expr, Operation):
                 if expr.operator == "OR":
-                    return max(compute_score(operand) for operand in expr.operands)
+                    return np.mean(
+                        [compute_score(operand) for operand in expr.operands]
+                    )
                 elif expr.operator == "AND":
-                    return math.prod(
-                        compute_score(operand) for operand in expr.operands
+                    return np.prod(
+                        [compute_score(operand) for operand in expr.operands]
                     )
                 elif expr.operator == "NOT":
                     return 1 - compute_score(expr.operands[0])
@@ -112,76 +127,82 @@ async def execute_structured_query(query: SelectStmt):
                 ):
                     if isinstance(expr.operands[0], Identifier):
                         query_attr = expr.operands[0].name
-                        score = 0
-                        for triple in item_triples:
-                            attr_score = embedding_handler.cosine_similarity(
-                                text_vector_map[query_attr],
-                                triple.attr_embedding_vector,
+                        if query_attr == "content_type":
+                            attr_value = doc.content_type
+                        elif query_attr in ("title", "description"):
+                            attr_value = np.array(
+                                doc.file.metadata[
+                                    (
+                                        "title_embedding"
+                                        if query_attr == "title"
+                                        else "description_embedding"
+                                    )
+                                ]
                             )
-                            if expr.operator in ("=", "<>") and isinstance(
-                                expr.operands[1], Value
-                            ):
-                                query_value = expr.operands[1].value
-                                value_score = (
-                                    embedding_handler.cosine_similarity(
-                                        text_vector_map[query_value],
-                                        triple.value_embedding_vector,
-                                    )
-                                    if isinstance(query_value, str)
-                                    or isinstance(triple.value, str)
-                                    else (1 if query_value == triple.value else 0)
+                        elif query_attr == "created_at":
+                            attr_value = datetime.date.fromtimestamp(
+                                doc.created_at.timestamp()
+                            )
+                        if expr.operator in ("SLIKE", "NSLIKE"):
+                            assert query_attr in ("title", "description")
+                            if isinstance(expr.operands[1], Value):
+                                query_value = text_vector_map[query_value]
+                            elif isinstance(expr.operands[1], Identifier):
+                                query_attr_right = expr.operands[1].name
+                                assert query_attr_right in ("title", "description")
+                                query_value = np.array(
+                                    doc.file.metadata[
+                                        (
+                                            "title_embedding"
+                                            if query_attr_right == "title"
+                                            else "description_embedding"
+                                        )
+                                    ]
                                 )
-                                if expr.operator == "<>":
-                                    value_score = 1 - value_score
-                                score = np.clip(score, 0, 1)
-                            elif all(
-                                isinstance(operand, Value)
-                                and isinstance(
-                                    operand.value, int | float | datetime.date
-                                )
-                                for operand in expr.operands[1:]
-                            ):
-                                if expr.operator == "<":
-                                    value_score = (
-                                        1
-                                        if triple.value < expr.operands[1].value
-                                        else 0
-                                    )
-                                elif expr.operator == "<=":
-                                    value_score = (
-                                        1
-                                        if triple.value <= expr.operands[1].value
-                                        else 0
-                                    )
-                                elif expr.operator == ">":
-                                    value_score = (
-                                        1
-                                        if triple.value > expr.operands[1].value
-                                        else 0
-                                    )
-                                elif expr.operator == ">=":
-                                    value_score = (
-                                        1
-                                        if triple.value >= expr.operands[1].value
-                                        else 0
-                                    )
-                                elif expr.operator == "BETWEEN":
-                                    value_score = (
-                                        1
-                                        if triple.value >= expr.operands[1].value
-                                        and triple.value <= expr.operands[2].value
-                                        else 0
-                                    )
-                            else:
+                            elif isinstance(expr.operands[1], FunctionCall):
                                 raise NotImplementedError()  # TODO
-                            score += attr_score * value_score
+                            else:
+                                raise RuntimeError("Invalid operand type")
+                            score = embedding_handler.cosine_similarity(
+                                query_value, attr_value
+                            )
+                            if expr.operator == "NSLIKE":
+                                score = 1 - score
+                        elif all(
+                            isinstance(operand, Value)
+                            and isinstance(operand.value, int | float | datetime.date)
+                            for operand in expr.operands[1:]
+                        ):
+                            if expr.operator == "=":
+                                score = 1 if attr_value == expr.operands[1].value else 0
+                            elif expr.operator == "<>":
+                                score = 1 if attr_value != expr.operands[1].value else 0
+                            elif expr.operator == "<":
+                                score = 1 if attr_value < expr.operands[1].value else 0
+                            elif expr.operator == "<=":
+                                score = 1 if attr_value <= expr.operands[1].value else 0
+                            elif expr.operator == ">":
+                                score = 1 if attr_value > expr.operands[1].value else 0
+                            elif expr.operator == ">=":
+                                score = 1 if attr_value >= expr.operands[1].value else 0
+                            elif expr.operator == "BETWEEN":
+                                score = (
+                                    1
+                                    if attr_value >= expr.operands[1].value
+                                    and attr_value <= expr.operands[2].value
+                                    else 0
+                                )
+                        else:
+                            raise NotImplementedError()  # TODO
+                        score = np.clip(score, 0, 1)
                         return score
+            return 0
             raise NotImplementedError()
 
         score = compute_score(query.condition)
-        item_score_map[item_id] = score
+        doc_scores[i] = score
 
-    # Zip the item ids with their corresponding scores
-    item_ids_with_scores = [(sid, item_score_map[sid]) for sid in item_ids]
+    # Zip the documents with their corresponding scores
+    docs_with_scores = [(doc, doc_scores[i]) for i, doc in enumerate(docs)]
 
-    return item_ids_with_scores
+    return docs_with_scores

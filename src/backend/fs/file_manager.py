@@ -4,10 +4,17 @@ from backend.models.models import *
 from backend.preprocessing import preprocessing_handler
 from backend.repositories import file_repository
 
-import asyncio, threading
+import asyncio, threading, os
 
 
 watcher = None
+
+
+def gather_unpreprocessed_files():
+    print("Gathering unpreprocessed files...")
+    for file in file_repository.query_all_files():
+        if not file.metadata.get("preprocessing_done", False):
+            preprocess_file(file.path)
 
 
 def preprocess_file(path):
@@ -21,7 +28,7 @@ def preprocess_file(path):
 
 def create_event_handler(path):
     print(f"File created: {path}")
-    file_repository.create_file(file_path=path)
+    file_repository.get_or_create_file(file_path=path)
     preprocess_file(path)
 
 
@@ -32,6 +39,7 @@ def delete_event_handler(path):
 
 def modify_event_handler(path):
     print(f"File modified: {path}")
+    file_repository.get_or_create_file(file_path=path)
     preprocess_file(path)
 
 
@@ -52,6 +60,10 @@ def start_watcher():
         move_event_handler=move_event_handler,
     )
     watcher.start()
+
+
+def stop_watcher():
+    watcher.stop()
 
 
 def on_watch_directories_change():

@@ -11,15 +11,16 @@ tags = dict[str, Tag]()
 def load_tags():
     global tags
     if os.path.exists(config.TAGS_FILE):
-        with open(config.TAGS_FILE, "r") as f:
+        with open(config.TAGS_FILE, "r", encoding="utf-8") as f:
             json_str = f.read()
         tags = {
-            tag_dict["id"]: Tag(**tag_dict) for tag_dict in utils.load_json(json_str)
+            tag_dict["id"]: Tag(**tag_dict)
+            for tag_dict in (utils.load_json(json_str) or [])
         }
 
 
 def save_tags():
-    with open(config.TAGS_FILE, "w") as f:
+    with open(config.TAGS_FILE, "w", encoding="utf-8") as f:
         f.write(utils.dump_json(tags.values()))
 
 
@@ -27,8 +28,8 @@ def new_tag_id():
     return str(uuid.uuid4())
 
 
-def get_tag_by_id(tag_id: str) -> Tag | None:
-    return tags.get(tag_id, None)
+def get_tag_by_id(tag_id: str) -> Tag:
+    return tags[tag_id]
 
 
 def get_tags_by_ids(tag_ids: list[str]) -> list[Tag]:

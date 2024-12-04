@@ -114,6 +114,7 @@ class DataSourcesPageFrame(PageFrame):
             self.edit_data_source_panel.destroy()
 
     def display_data_sources(self, data_sources: list[DataSource]):
+        self.clear_display_frame()
         for data_source in data_sources:
             data_source_card = DataSourceCard(
                 self.display_frame,

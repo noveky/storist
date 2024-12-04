@@ -17,8 +17,11 @@ client = openai.AsyncOpenAI(
 async def content_handler(content: typing.AsyncGenerator[str, None]):
     if not PRINT_STREAM_RESPONSE:
         return
-    async for token in content:
-        print(token, end="", flush=True)
+    try:
+        async for token in content:
+            print(token, end="", flush=True)
+    except:
+        pass
     print()
 
 
@@ -28,6 +31,7 @@ async def request_completion(
     user_prompt: str | list,
     temperature: float | None = None,
     max_tokens: int = 8192,
+    max_retries: int = 3,
 ) -> tuple[set[str], ChatCompletionMessage]:
     messages = []
     if system_prompt:
@@ -55,4 +59,4 @@ async def request_completion(
         )
         return response[1].content
 
-    return await utils.try_loop_async(try_func)
+    return await utils.try_loop_async(try_func, max_retries=max_retries)

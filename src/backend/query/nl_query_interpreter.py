@@ -1,10 +1,10 @@
-from . import psql_parser
+from . import ssql_parser
 
 from utils import utils
 from backend.nlp import completion_handler
 from backend import llm_prompts
 
-MODEL = "gpt-4o-mini"
+MODEL = "gpt-4o"
 
 
 def extract_and_parse_sql(text: str):
@@ -16,10 +16,10 @@ def extract_and_parse_sql(text: str):
         raise ValueError("Expected exactly one SQL code block in the text")
 
     sql_code = str(sql_codes[0]).strip()
-    return psql_parser.parse(sql_code)
+    return ssql_parser.parse(sql_code)
 
 
-async def interpret_query(query: str) -> psql_parser.SelectStmt:
+async def interpret_query(query: str) -> ssql_parser.SelectStmt:
     system_prompt = llm_prompts.format_prompt(
         llm_prompts.QUERY_INTERPRETER_SYSTEM_PROMPT
     )
@@ -34,10 +34,10 @@ async def interpret_query(query: str) -> psql_parser.SelectStmt:
             user_prompt=user_prompt,
         )
         sql_parse_tree = extract_and_parse_sql(response)
-        if sql_parse_tree.from_table_name != "db":
+        if sql_parse_tree.from_table_name != "documents":
             raise ValueError("Invalid response")
 
-    sql_parse_tree: psql_parser.SelectStmt = None
+    sql_parse_tree: ssql_parser.SelectStmt = None
     await utils.try_loop_async(try_func)
 
     return sql_parse_tree

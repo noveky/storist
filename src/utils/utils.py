@@ -74,7 +74,7 @@ def dump_yaml(data: typing.Any, **kwargs) -> str:
 
 
 def load_json(json_str: str) -> typing.Any:
-    return json.loads(json_str)
+    return json.loads(json_str) if json_str.strip() else None
 
 
 def load_yaml(yaml_str: str) -> typing.Any:
@@ -148,6 +148,8 @@ def encode_image_to_base64_data_uri(file_path):
         mime_type = "image/png"
     elif extension == ".gif":
         mime_type = "image/gif"
+    elif extension == ".bmp":
+        mime_type = "image/bmp"
     else:
         raise ValueError("Unsupported file extension")
 

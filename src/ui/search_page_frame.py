@@ -25,15 +25,38 @@ class SearchPageFrame(PageFrame):
         self.date_from_var = ctk.StringVar()
         self.date_to_var = ctk.StringVar()
 
-        self.search_bar = ctk.CTkFrame(self, corner_radius=12, fg_color="#f9f9fa")
+        self.search_bar = ctk.CTkTabview(self, corner_radius=12, fg_color="#f9f9fa")
         self.search_bar.pack(fill="x", padx=24, pady=16)
+        self.search_bar.add("条件检索")
+        self.search_bar.add("自然语言检索")
 
         self.result_frame = ctk.CTkScrollableFrame(
             self, corner_radius=0, fg_color="transparent", orientation="vertical"
         )
         self.result_frame.pack(fill="both", expand=True, padx=24, pady=(0, 16))
 
-        self.search_bar_inner = ctk.CTkFrame(self.search_bar, fg_color="transparent")
+        self.nl_search_label = ctk.CTkLabel(
+            self.search_bar.tab("自然语言检索"),
+            text="请用自然语言描述目标文档的特征：",
+            anchor="w",
+        )
+        self.nl_search_label.pack(fill="x", padx=16, pady=(20, 8))
+        self.nl_search_textbox = ctk.CTkTextbox(
+            self.search_bar.tab("自然语言检索"), height=100, fg_color="#eaeaeb"
+        )
+        self.nl_search_textbox.pack(fill="both", padx=16, pady=(0, 28))
+
+        self.nl_search_button = ctk.CTkButton(
+            self.search_bar.tab("自然语言检索"),
+            text="检索",
+            command=self.perform_nl_search,
+            height=32,
+        )
+        self.nl_search_button.pack(fill="x", padx=16, pady=(0, 24))
+
+        self.search_bar_inner = ctk.CTkFrame(
+            self.search_bar.tab("条件检索"), fg_color="transparent"
+        )
         self.search_bar_inner.pack(fill="both", padx=12, pady=20)
         self.search_bar_inner.grid_columnconfigure(0, weight=0)
         self.search_bar_inner.grid_columnconfigure(1, weight=1)
@@ -98,7 +121,10 @@ class SearchPageFrame(PageFrame):
         self.button_frame.grid_columnconfigure(1, weight=1)
 
         self.search_button = ctk.CTkButton(
-            self.button_frame, text="检索", command=self.perform_search, height=32
+            self.button_frame,
+            text="检索",
+            command=self.perform_conditional_search,
+            height=32,
         )
         self.search_button.grid(row=0, column=0, sticky="e", padx=(0, 8))
 
@@ -112,7 +138,24 @@ class SearchPageFrame(PageFrame):
         values = self.search_in_combobox.cget("values")
         self.content_type_index_var.set(values.index(current_value))
 
-    def perform_search(self):
+    def perform_nl_search(self):
+        specification = self.nl_search_textbox.get("1.0", "end-1c")
+
+        async def run_query():
+            # Clear previous search results
+            for widget in self.result_frame.winfo_children():
+                widget.destroy()
+
+            # Retrieve search results
+            result_docs = await query_handler.handle_nl_query(specification)
+
+            # Display search results
+            self.display_search_results(result_docs)
+
+        thread = threading.Thread(target=lambda: asyncio.run(run_query()))
+        thread.start()
+
+    def perform_conditional_search(self):
         # Fetching filter criteria from the input fields
         content_type_filter = SearchPageFrame.content_types[
             self.content_type_index_var.get()
@@ -135,12 +178,10 @@ class SearchPageFrame(PageFrame):
         )
 
         async def run_query():
-            # Clear previous search results
-            for widget in self.result_frame.winfo_children():
-                widget.destroy()
+            self.clear_result_frame()
 
             # Retrieve search results
-            result_docs = await query_handler.handle_query(
+            result_docs = await query_handler.handle_conditional_query(
                 query_content_type=content_type_filter,
                 query_title=title_filter,
                 query_description=description_filter,
@@ -162,18 +203,14 @@ class SearchPageFrame(PageFrame):
         self.date_from_var.set("")
         self.date_to_var.set("")
 
+    def clear_result_frame(self):
+        for widget in self.result_frame.winfo_children():
+            widget.destroy()
+
     def display_search_results(self, result_docs: list[Document]):
+        self.clear_result_frame()
         for i, doc in enumerate(result_docs):
-            DocumentCard(
-                self.result_frame,
-                title=doc.title,
-                description=doc.description,
-                tags=[tag.name for tag in doc.tags],
-                image=(
-                    Image.open(doc.file_path) if doc.content_type == "image" else None
-                ),
-                date=doc.date,
-            ).pack(
+            DocumentCard(self.result_frame, document=doc, click_handler=None).pack(
                 fill="x",
                 expand=True,
                 padx=16,
