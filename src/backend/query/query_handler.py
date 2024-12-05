@@ -1,4 +1,4 @@
-from backend.repositories import file_repository, tag_repository, triple_repository
+from backend.repositories import file_repository, tag_repository
 from backend.models.models import *
 from . import (
     nl_query_interpreter,
@@ -16,6 +16,15 @@ def cutoff_results(result_docs_with_scores, num_clusters=2):
     scores = np.array(
         [score for _, score in result_docs_with_scores if score > 0]
     ).reshape(-1, 1)
+    print(f"Non-zero scores:\n{scores}")
+
+    if scores.shape[0] < num_clusters:
+        print("Not enough results to cluster")
+        return [
+            result_doc_with_score
+            for result_doc_with_score in result_docs_with_scores
+            if result_doc_with_score[1] > 0
+        ]
 
     kmeans = KMeans(n_clusters=num_clusters)
     kmeans.fit(scores)
@@ -27,8 +36,8 @@ def cutoff_results(result_docs_with_scores, num_clusters=2):
     min_score = min(scores[cluster_labels == highest_cluster])
 
     print("Clustering result:")
-    print(f"High cluster: {scores[cluster_labels == highest_cluster]}")
-    print(f"Low cluster: {scores[cluster_labels != highest_cluster]}")
+    print(f"High cluster:\n{scores[cluster_labels == highest_cluster]}")
+    print(f"Low cluster:\n{scores[cluster_labels != highest_cluster]}")
 
     return [doc for doc, score in result_docs_with_scores if score >= min_score]
 
@@ -90,8 +99,7 @@ async def handle_conditional_query(
     # Exact filters
     files = file_repository.query_all_files()
     file_tags_map = {
-        file.id: [tag_repository.get_tag_by_id(tag_id) for tag_id in file.tag_ids]
-        for file in files
+        file.id: tag_repository.get_tags_by_ids(file.tag_ids) for file in files
     }
     docs = [Document.from_file(file, file_tags_map[file.id]) for file in files]
     docs: list[Document] = [doc for doc in docs if doc is not None]

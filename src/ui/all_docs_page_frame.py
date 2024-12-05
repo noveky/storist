@@ -20,10 +20,7 @@ class AllDocsPageFrame(PageFrame):
     def fetch_documents(self):
         self.clear_display_frame()
         files = file_repository.query_all_files()
-        tags = {
-            file.id: [tag_repository.get_tag_by_id(tag_id) for tag_id in file.tag_ids]
-            for file in files
-        }
+        tags = {file.id: tag_repository.get_tags_by_ids(file.tag_ids) for file in files}
         docs = [Document.from_file(file, tags[file.id]) for file in files]
         docs = [doc for doc in docs if doc is not None]
         docs.sort(key=lambda x: x.created_at, reverse=True)

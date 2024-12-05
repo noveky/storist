@@ -2,7 +2,7 @@ from . import file_system_watcher
 
 from backend.models.models import *
 from backend.preprocessing import preprocessing_handler
-from backend.repositories import file_repository
+from backend.repositories import file_repository, watch_directory_repository
 
 import asyncio, threading, os
 
@@ -51,7 +51,7 @@ def move_event_handler(src_path, dest_path):
 def start_watcher():
     global watcher
 
-    watch_directories = file_repository.query_all_watch_directories()
+    watch_directories = watch_directory_repository.query_all_watch_directories()
     watcher = file_system_watcher.FileSystemWatcher(
         paths=[watch_directory.path for watch_directory in watch_directories],
         create_event_handler=create_event_handler,
@@ -67,15 +67,17 @@ def stop_watcher():
 
 
 def on_watch_directories_change():
-    watch_directories = file_repository.query_all_watch_directories()
+    watch_directories = watch_directory_repository.query_all_watch_directories()
 
-    for path in watcher.paths:
+    for path in list(watcher.paths):
         if path not in watch_directories:
             watcher.remove_path(path)
 
-    for path in watch_directories:
+    for path in list(watch_directories):
         if path not in watcher.paths:
             watcher.add_path(path)
 
 
-file_repository.watch_directories_change_handlers.append(on_watch_directories_change)
+watch_directory_repository.watch_directories_change_handlers.append(
+    on_watch_directories_change
+)

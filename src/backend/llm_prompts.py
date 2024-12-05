@@ -28,6 +28,7 @@ QUERY_INTERPRETER_SYSTEM_PROMPT = """
 - 除了 SLIKE 和 NSLIKE 外，不要使用任何 SQL 方言特定的用法。
 - 不要使用任何子查询或表连接。
 - AND 的优先级高于 OR，所以在必要的地方加括号。
+- 日期值用 'YYYY-MM-DD' 格式表示，前面不需要加 DATE 关键字。
 
 
 最新信息：

@@ -2,7 +2,7 @@ import customtkinter as ctk
 
 
 class TagWidget(ctk.CTkFrame):
-    def __init__(self, master, tag: str):
+    def __init__(self, master, tag_name: str):
         super().__init__(
             master,
             height=28,
@@ -24,7 +24,7 @@ class TagWidget(ctk.CTkFrame):
         self.text_label = ctk.CTkLabel(
             self,
             height=20,
-            text=tag,
+            text=tag_name,
             text_color="#8a32a9",
             font=ctk.CTkFont(size=12),
         )

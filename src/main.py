@@ -5,7 +5,6 @@ from backend.fs import file_manager
 
 import os
 
-
 if __name__ == "__main__":
     try:
         os.makedirs(config.DATA_DIR, exist_ok=True)

@@ -16,12 +16,12 @@ async def execute_structured_query(query: SelectStmt):
         elif isinstance(expr, FunctionCall):
             raise NotImplementedError()
         elif isinstance(expr, Operation):
-            if all(
-                operand.name in ("title", "description")
-                for operand in expr.operands
-                if isinstance(operand, Identifier)
-            ):
-                if expr.operator in ("LIKE", "NOT LIKE", "=", "<>"):
+            if expr.operator in ("LIKE", "NOT LIKE", "=", "<>"):
+                if all(
+                    operand.name in ("title", "description")
+                    for operand in expr.operands
+                    if isinstance(operand, Identifier)
+                ):
                     return Operation(
                         "SLIKE" if expr.operator in ("LIKE", "=") else "NSLIKE",
                         *expr.operands
@@ -50,9 +50,12 @@ async def execute_structured_query(query: SelectStmt):
                         expr.operands[0].value >= expr.operands[1].value
                         and expr.operands[1].value <= expr.operands[2].value
                     )
-            elif expr.operator in ("OR", "AND"):
+            else:
                 for i, operand in enumerate(expr.operands):
-                    expr.operands[i] = transform_expr(operand, is_condition_expr=True)
+                    expr.operands[i] = transform_expr(
+                        operand,
+                        is_condition_expr=(expr.operator in ("OR", "AND", "NOT")),
+                    )
         return expr
 
     query.condition = transform_expr(query.condition, is_condition_expr=True)
@@ -64,7 +67,7 @@ async def execute_structured_query(query: SelectStmt):
             for arg in expr.arguments:
                 collect_query_attributes(arg)
         elif isinstance(expr, Operation):
-            if expr.operator in ("LIKE", "NOT LIKE", "=", "<>"):
+            if expr.operator in ("SLIKE", "NSLIKE"):
                 for operand in expr.operands:
                     if isinstance(operand, Value) and isinstance(operand.value, str):
                         texts_to_embed.add(operand.value)
@@ -90,8 +93,7 @@ async def execute_structured_query(query: SelectStmt):
     # Retrieve all documents
     files = file_repository.query_all_files()
     file_tags_map = {
-        file.id: [tag_repository.get_tag_by_id(tag_id) for tag_id in file.tag_ids]
-        for file in files
+        file.id: tag_repository.get_tags_by_ids(file.tag_ids) for file in files
     }
     docs = [Document.from_file(file, file_tags_map[file.id]) for file in files]
     docs: list[Document] = [doc for doc in docs if doc is not None]
@@ -107,9 +109,7 @@ async def execute_structured_query(query: SelectStmt):
                 return 1 if bool(expr.value) else 0
             elif isinstance(expr, Operation):
                 if expr.operator == "OR":
-                    return np.mean(
-                        [compute_score(operand) for operand in expr.operands]
-                    )
+                    return np.max([compute_score(operand) for operand in expr.operands])
                 elif expr.operator == "AND":
                     return np.prod(
                         [compute_score(operand) for operand in expr.operands]
@@ -117,6 +117,10 @@ async def execute_structured_query(query: SelectStmt):
                 elif expr.operator == "NOT":
                     return 1 - compute_score(expr.operands[0])
                 elif expr.operator in (
+                    "SLIKE",
+                    "NSLIKE",
+                    "LIKE",
+                    "NOT LIKE",
                     "=",
                     "<>",
                     "<",
@@ -146,7 +150,7 @@ async def execute_structured_query(query: SelectStmt):
                         if expr.operator in ("SLIKE", "NSLIKE"):
                             assert query_attr in ("title", "description")
                             if isinstance(expr.operands[1], Value):
-                                query_value = text_vector_map[query_value]
+                                query_value = text_vector_map[expr.operands[1].value]
                             elif isinstance(expr.operands[1], Identifier):
                                 query_attr_right = expr.operands[1].name
                                 assert query_attr_right in ("title", "description")
@@ -169,9 +173,7 @@ async def execute_structured_query(query: SelectStmt):
                             if expr.operator == "NSLIKE":
                                 score = 1 - score
                         elif all(
-                            isinstance(operand, Value)
-                            and isinstance(operand.value, int | float | datetime.date)
-                            for operand in expr.operands[1:]
+                            isinstance(operand, Value) for operand in expr.operands[1:]
                         ):
                             if expr.operator == "=":
                                 score = 1 if attr_value == expr.operands[1].value else 0
@@ -192,6 +194,8 @@ async def execute_structured_query(query: SelectStmt):
                                     and attr_value <= expr.operands[2].value
                                     else 0
                                 )
+                            else:
+                                raise NotImplementedError()  # TODO
                         else:
                             raise NotImplementedError()  # TODO
                         score = np.clip(score, 0, 1)

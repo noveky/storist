@@ -14,8 +14,7 @@ async def execute_semantic_query(
     # Retrieve all documents
     files = file_repository.query_all_files()
     file_tags_map = {
-        file.id: [tag_repository.get_tag_by_id(tag_id) for tag_id in file.tag_ids]
-        for file in files
+        file.id: tag_repository.get_tags_by_ids(file.tag_ids) for file in files
     }
     docs = [Document.from_file(file, file_tags_map[file.id]) for file in files]
     docs: list[Document] = [doc for doc in docs if doc is not None]

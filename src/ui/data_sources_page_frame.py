@@ -2,7 +2,7 @@ from .page_frame import PageFrame
 from .tag_widget import TagWidget
 from .data_source_edit_panel import EditDataSourcePanel
 from backend.models.models import *
-from backend.repositories import file_repository, tag_repository
+from backend.repositories import watch_directory_repository, tag_repository
 
 import customtkinter as ctk
 from PIL import Image
@@ -60,7 +60,7 @@ class DataSourceCard(ctk.CTkFrame):
             row=1, column=1, sticky="nsew", padx=(16, 0), pady=(12, 16)
         )
         for tag in data_source.associated_tags:
-            tag_widget = TagWidget(self.tags_frame, tag)
+            tag_widget = TagWidget(self.tags_frame, tag_name=tag.name)
             tag_widget.pack(side="left", padx=6, pady=0)
 
         # Click event
@@ -97,7 +97,7 @@ class DataSourcesPageFrame(PageFrame):
 
     def fetch_data_sources(self):
         self.clear_display_frame()
-        watch_directories = file_repository.query_all_watch_directories()
+        watch_directories = watch_directory_repository.query_all_watch_directories()
         data_sources = [
             DataSource.from_watch_directory(
                 watch_directory,

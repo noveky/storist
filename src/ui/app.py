@@ -1,6 +1,7 @@
 from .search_page_frame import SearchPageFrame
 from .all_docs_page_frame import AllDocsPageFrame
 from .data_sources_page_frame import DataSourcesPageFrame
+from .tag_manager_page_frame import TagManagerPageFrame
 
 import customtkinter as ctk
 
@@ -89,6 +90,7 @@ class App(ctk.CTk):
         self.search_page_frame = SearchPageFrame(self.main_area)
         self.all_docs_page_frame = AllDocsPageFrame(self.main_area)
         self.data_sources_page_frame = DataSourcesPageFrame(self.main_area)
+        self.tag_manager_page_frame = TagManagerPageFrame(self.main_area)
 
         # # Right panel
 
@@ -115,6 +117,8 @@ class App(ctk.CTk):
 
     def show_tag_manager_page(self):
         self.clear_main_area()
+        self.tag_manager_page_frame.pack()
+        self.tag_manager_page_frame.fetch_tags()
 
 
 if __name__ == "__main__":

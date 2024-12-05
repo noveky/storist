@@ -21,19 +21,24 @@ def load_tags():
 
 def save_tags():
     with open(config.TAGS_FILE, "w", encoding="utf-8") as f:
-        f.write(utils.dump_json(tags.values()))
+        f.write(utils.dump_json(list(tags.values())))
 
 
 def new_tag_id():
     return str(uuid.uuid4())
 
 
-def get_tag_by_id(tag_id: str) -> Tag:
-    return tags[tag_id]
+def get_tag_by_id(tag_id: str) -> Tag | None:
+    return tags.get(tag_id, None)
 
 
 def get_tags_by_ids(tag_ids: list[str]) -> list[Tag]:
-    return [tags[tag_id] for tag_id in tag_ids]
+    tags = []
+    for tag_id in tag_ids:
+        tag = get_tag_by_id(tag_id)
+        if tag is not None:
+            tags.append(tag)
+    return tags
 
 
 def create_tag(tag_name: str) -> Tag:
@@ -47,6 +52,10 @@ def create_tag(tag_name: str) -> Tag:
 def delete_tag(tag_id: str):
     del tags[tag_id]
     save_tags()
+
+
+def query_all_tags() -> list[Tag]:
+    return list(tags.values())
 
 
 def query_tags_by_prefix(prefix: str) -> list[Tag]:

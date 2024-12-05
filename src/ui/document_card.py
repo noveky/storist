@@ -137,9 +137,9 @@ class DocumentCard(ctk.CTkFrame):
         self.tags_frame = ctk.CTkFrame(
             self.bottom_frame, corner_radius=0, fg_color="transparent", height=0
         )
-        self.tags_frame.grid(row=0, column=0, sticky="ew", padx=(16, 0), pady=0)
+        self.tags_frame.grid(row=0, column=0, sticky="ew", padx=(16, 0), pady=(0, 16))
         for tag in document.tags:
-            tag_widget = TagWidget(self.tags_frame, tag)
+            tag_widget = TagWidget(self.tags_frame, tag_name=tag.name)
             tag_widget.pack(side="left", padx=6, pady=0)
 
         # Date
@@ -168,13 +168,18 @@ if __name__ == "__main__":  # TODO Remove this
     sample_image = Image.new("RGB", (1920, 1080), color="red")
 
     document_card = DocumentCard(
-        master=app,
-        image=sample_image,
-        title="Sample Document",
-        description="This is a sample description for the document.",
-        tags=["Sample", "Document", "Card"],
-        date=datetime.date.today(),
-        click_handler=lambda *args: print(f"Clicked on the document card: {args}"),
+        app,
+        Document(
+            file=File(id="1", path="path/to/file.jpg", tag_ids=[], metadata={}),
+            file_path="../test/2/handwritten.bmp",
+            content_type="image",
+            created_at=datetime.datetime.now(),
+            title="Sample Document",
+            description="This is a sample document.",
+            tags=[Tag(id="1", name="tag1"), Tag(id="2", name="tag2")],
+            texts=["This is a sample text.", "This is another sample text."],
+        ),
+        click_handler=lambda card: print("Clicked on card"),
     )
     document_card.pack(padx=12, pady=12, fill="x", expand=True)
 

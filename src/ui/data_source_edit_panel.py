@@ -1,5 +1,5 @@
 from backend.models.models import *
-from backend.repositories import tag_repository, file_repository
+from backend.repositories import watch_directory_repository, tag_repository
 
 import customtkinter as ctk
 from tkinter import StringVar, Listbox, messagebox, filedialog
@@ -96,7 +96,7 @@ class EditDataSourcePanel(ctk.CTkFrame):
 
         # Tags frame
         self.tags_frame = ctk.CTkFrame(self)
-        self.tags_frame.pack(pady=(16, 0), fill="x", padx=16)
+        self.tags_frame.pack(fill="x", padx=16, pady=(16, 0))
 
         # Listbox for displaying current tags
         self.add_tag_label = ctk.CTkLabel(self.tags_frame, text="关联标签")
@@ -177,15 +177,19 @@ class EditDataSourcePanel(ctk.CTkFrame):
             self.delete_data_source()
 
     def delete_data_source(self):
-        file_repository.delete_watch_directory(self.data_source.watch_directory)
+        watch_directory_repository.delete_watch_directory(
+            self.data_source.watch_directory
+        )
         self.close_command()
 
     def save_edits(self):
         path = self.path_entry.get()
         tags = self.selected_tags
         if self.data_source:
-            file_repository.delete_watch_directory(self.data_source.watch_directory)
-        file_repository.create_watch_directory(path, tags)
+            watch_directory_repository.delete_watch_directory(
+                self.data_source.watch_directory
+            )
+        watch_directory_repository.create_watch_directory(path, tags)
         self.close_command()
 
     def cancel_edits(self):
