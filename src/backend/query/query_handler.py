@@ -3,7 +3,7 @@ from backend.models.models import *
 from . import (
     nl_query_interpreter,
     semantic_query_executor,
-    structured_query_executor,
+    ssql_executor,
 )
 
 import datetime, numpy as np
@@ -70,7 +70,7 @@ async def handle_nl_query(
     ssql_select_stmt = await nl_query_interpreter.interpret_query(specification)
 
     # Execute query
-    result_docs_with_scores = await structured_query_executor.execute_structured_query(
+    result_docs_with_scores = await ssql_executor.execute_structured_query(
         ssql_select_stmt
     )
 

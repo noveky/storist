@@ -1,5 +1,5 @@
 from utils import utils
-from backend import llm_prompts
+from backend.llm_prompts import llm_prompts
 from backend.nlp import completion_handler
 
 MODEL = "gpt-4o"
